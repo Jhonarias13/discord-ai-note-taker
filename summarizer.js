@@ -39,12 +39,11 @@ Menciona a los participantes con su @handle.
 - Tema principal 2
   - Punto relacionado, mismo formato.
 
-✅ **Elementos de acción**
+✅ **Elementos de acción** Si aplica.
 - Acción a realizar, quién la ejecutará, y el tiempo si aplica [hh:mm:ss].
 
-Notas adicionales:
+Notas adicionales: Si aplica
 - Agrega al final un aviso que indique que la transcripción es generada automáticamente con IA, por lo cual podría contener imprecisiones.
-- Incluye, si existe, un enlace para ver la reunión completa o la transcripción.
 
 **Instrucciones de redacción:**
 - No repitas información innecesaria.
@@ -53,6 +52,7 @@ Notas adicionales:
 - Utiliza Markdown compatible con Discord (negritas, emojis estándar, menciones @).
 - Asegúrate de incluir los timestamps [hh:mm:ss] para cada intervención clave.
 - No inventes información si no está disponible.
+- [hora inicio] y [hora final] deben ser deducidos de los timestamps de las intervenciones.
 
 Ejemplo de emojis que debes usar (Unicode):
 - 🎧 para notas de la junta
@@ -73,7 +73,6 @@ Ejemplo de emojis que debes usar (Unicode):
         { role: 'user', content: prompt }
       ],
       temperature: 0.3, // Bajo para que sea serio y estructurado
-      max_tokens: 1000
     }, {
       headers: {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -82,9 +81,6 @@ Ejemplo de emojis que debes usar (Unicode):
     });
 
     const summary = response.data.choices[0].message.content;
-
-    console.log('✅ Resumen generado por OpenAI:');
-    console.log(summary);
 
     // Guardarlo opcionalmente
     const fecha = new Date().toISOString().replace(/[:.]/g, '-');

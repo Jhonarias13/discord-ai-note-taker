@@ -8,6 +8,7 @@ require('dotenv').config();
 // Memorias para los dos tipos de guardado
 const scriptLines = [];
 const jsonScript = [];
+const MIN_VALID_FILE_SIZE = 10 * 1024; // 10 KB
 
 async function convertPcmToWav(pcmPath, wavPath) {
   return new Promise((resolve, reject) => {
@@ -49,35 +50,38 @@ async function transcribeWithWhisper(wavPath) {
 
 async function processRecording(pcmFilePath) {
   try {
+    const fileStats = fs.statSync(pcmFilePath);
+    if (fileStats.size < MIN_VALID_FILE_SIZE) {
+      // console.log(`⚠️ Archivo demasiado pequeño (${fileStats.size} bytes), se omite: ${pcmFilePath}`);
+      return;
+    }
+
     const wavFilePath = pcmFilePath.replace('.pcm', '.wav');
     const fileName = path.basename(pcmFilePath);
 
     const userNameMatch = fileName.match(/^(.+?)_/);
     const userName = userNameMatch ? userNameMatch[1] : 'UsuarioDesconocido';
 
+    // console.log(`🎛️ Convirtiendo ${pcmFilePath} a WAV...`);
     await convertPcmToWav(pcmFilePath, wavFilePath);
+    // console.log(`✅ Conversión completada: ${wavFilePath}`);
 
+    // console.log('🧠 Enviando a Whisper para transcripción...');
     const transcription = await transcribeWithWhisper(wavFilePath);
 
-    console.log(`📝 ${userName} dijo:`);
-    console.log(transcription);
+    if (!transcription || transcription.trim().length === 0) {
+      // console.log(`⚠️ Whisper devolvió transcripción vacía para ${userName}, se omite.`);
+      return;
+    }
 
-    // Obtener el timestamp (hora de finalización)
     const fecha = new Date();
     const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-    // Limpiar saltos de línea en la transcripción
     const cleanedTranscription = transcription.replace(/(\r\n|\n|\r)/gm, ' ');
-
-    // Agregar formato de línea tipo "nombre: 'texto'"
     scriptLines.push(`${userName} [${hora}]: "${cleanedTranscription}"`);
+    jsonScript.push({ user: userName, time: hora, text: cleanedTranscription });
 
-    // Agregar al array JSON
-    jsonScript.push({
-      user: userName,
-      time: hora,
-      text: cleanedTranscription
-    });
+    // console.log(`📝 Transcripción válida agregada al guion.`);
 
   } catch (error) {
     console.error('❌ Error procesando grabación:', error);

@@ -20,6 +20,41 @@ const client = new Client({
 const state = {
   isRecording: false,
   channelId: null,
+  textChannelId: null,
+}
+
+
+function eliminarArchivosDeGrabaciones() {
+  const recordingsDir = path.join(__dirname, 'recordings');
+  const scriptsDir = path.join(__dirname, 'scripts');
+  fs.readdir(recordingsDir, (err, files) => {
+    if (err) {
+      console.error('❌ Error al leer la carpeta recordings:', err);
+      return;
+    }
+    for (const file of files) {
+      const filePath = path.join(recordingsDir, file);
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          console.error(`❌ Error al borrar el archivo ${file}:`, err);
+        }
+      });
+    }
+  });
+  fs.readdir(scriptsDir, (err, files) => {
+    if (err) {
+      console.error('❌ Error al leer la carpeta scripts:', err);
+      return;
+    }
+    for (const file of files) {
+      const filePath = path.join(scriptsDir, file);
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          console.error(`❌ Error al borrar el archivo ${file}:`, err);
+        }
+      });
+    }
+  });
 }
 
 client.once('ready', () => {
@@ -72,6 +107,8 @@ client.on('messageCreate', async (message) => {
     if (!voiceChannel) {
       return message.reply('❌ Debes estar en un canal de voz para usar este comando.');
     }
+
+    state.textChannelId = message.channel.id;
 
     joinVoiceChannel({
       channelId: voiceChannel.id,
@@ -134,24 +171,19 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
       const filePath = await saveFinalScript(oldState.channel.name);
       console.log('✅ Grabación finalizada y guardada.');
 
-      await summarizeMeeting(filePath.jsonPath, new Date().toISOString(), oldState.channel.name);
+      const resumen = await summarizeMeeting(filePath.jsonPath, new Date().toISOString(), oldState.channel.name);
 
-      // // Elimina todos los archivos de la carpeta 'recordings'
-      // const recordingsDir = path.join(__dirname, 'recordings');
-      // fs.readdir(recordingsDir, (err, files) => {
-      //   if (err) {
-      //     console.error('❌ Error al leer la carpeta recordings:', err);
-      //     return;
-      //   }
-      //   for (const file of files) {
-      //     const filePath = path.join(recordingsDir, file);
-      //     fs.unlink(filePath, (err) => {
-      //       if (err) {
-      //         console.error(`❌ Error al borrar el archivo ${file}:`, err);
-      //       }
-      //     });
-      //   }
-      // });
+      // Enviar mensaje al canal de voz con el resumen generado por IA de la reunión
+      const channel = client.channels.cache.get(state.textChannelId);
+      if (channel && channel.isTextBased()) {
+        // Leer el resumen generado por IA desde el archivo correspondiente
+        await channel.send(`**Resumen de la reunión:**\n${resumen}`);
+      } else {
+        console.error('❌ No se encontró el canal de texto.');
+      }
+
+      // Elimina todos los archivos de la carpeta 'recordings'
+      // eliminarArchivosDeGrabaciones();
     }
   }
 });
